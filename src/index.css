@@ -2,14 +2,13 @@
 @import "tailwindcss";
 
 @theme {
-  /* Spacing scale (optional, but recommended for consistency) */
-  --spacing: 0.25rem; /* 1 = 0.25rem (4px) */
+  --spacing: 0.25rem;
 
-  /* Border widths */
+  /* Border */
   --border-width: 1px;
   --border-width-border: 1px;
 
-  /* Colors — define the ones used in your UI */
+  /* Light mode */
   --color-background: #ffffff;
   --color-foreground: #1e293b;
   --color-card: #ffffff;
@@ -30,7 +29,7 @@
   --color-input: #cbd5e1;
   --color-ring: #3b82f6;
 
-  /* Dark mode overrides */
+  /* Dark mode */
   --color-background-dark: #0f172a;
   --color-foreground-dark: #f1f5f9;
   --color-card-dark: #1e293b;
@@ -123,4 +122,24 @@
 }
 .path-cell {
   animation: drawPath 0.3s ease-out forwards;
+}
+
+/* Slider styling */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #38bdf8;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.slider::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #38bdf8;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }

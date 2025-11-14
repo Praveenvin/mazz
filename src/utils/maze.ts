@@ -1,9 +1,11 @@
+// src/utils/maze.ts
 import type { MazeState, Position } from '../types/maze';
-import { CellType } from '../types/maze';
+import { CellType, MIN_SIZE, MAX_SIZE } from '../types/maze';
 
 export const cloneMaze = (maze: MazeState): MazeState => ({
   ...maze,
   grid: maze.grid.map(row => [...row]),
+  visitCount: maze.visitCount?.map(row => [...row]) || [],
   start: maze.start ? { ...maze.start } : null,
   goal: maze.goal ? { ...maze.goal } : null,
 });
@@ -56,4 +58,33 @@ export const setGoal = (maze: MazeState, row: number, col: number): MazeState =>
 
 export const isValidPosition = (maze: MazeState, { row, col }: Position): boolean => {
   return row >= 0 && row < maze.rows && col >= 0 && col < maze.cols;
+};
+
+export const resizeMaze = (maze: MazeState, newSize: number): MazeState => {
+  newSize = Math.max(MIN_SIZE, Math.min(MAX_SIZE, newSize));
+  
+  const newGrid = Array(newSize).fill(null).map(() => Array(newSize).fill(CellType.Empty));
+  const newVisitCount = Array(newSize).fill(null).map(() => Array(newSize).fill(0));
+
+  for (let r = 0; r < Math.min(maze.rows, newSize); r++) {
+    for (let c = 0; c < Math.min(maze.cols, newSize); c++) {
+      newGrid[r][c] = maze.grid[r][c];
+      newVisitCount[r][c] = maze.visitCount?.[r]?.[c] || 0;
+    }
+  }
+
+  const adjustPos = (pos: Position | null): Position | null => {
+    if (!pos) return null;
+    if (pos.row < newSize && pos.col < newSize) return pos;
+    return null;
+  };
+
+  return {
+    grid: newGrid,
+    visitCount: newVisitCount,
+    start: adjustPos(maze.start),
+    goal: adjustPos(maze.goal),
+    rows: newSize,
+    cols: newSize,
+  };
 };

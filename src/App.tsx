@@ -1,13 +1,14 @@
+// src/App.tsx
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { createEmptyMaze, CellType } from './types/maze';
-import { toggleObstacle, setStart, setGoal } from './utils/maze';
+import { createEmptyMaze, CellType, DEFAULT_SIZE, MIN_SIZE, MAX_SIZE } from './types/maze';
+import { toggleObstacle, setStart, setGoal, resizeMaze, cloneMaze } from './utils/maze';
 import { runAlgorithm } from './utils/pathfinding';
 import type { Position, PathfindingResult, Algorithm } from './types/maze';
 
 type PlacementMode = 'none' | 'placingStart' | 'placingGoal';
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState(true); // Default to dark
+  const [darkMode, setDarkMode] = useState(true);
   const [maze, setMaze] = useState(() => createEmptyMaze());
   const [mode, setMode] = useState<PlacementMode>('none');
   const [selectedCell, setSelectedCell] = useState<Position | null>(null);
@@ -16,9 +17,13 @@ export default function App() {
   const [isComputing, setIsComputing] = useState(false);
   const [stepMode, setStepMode] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [gridSize, setGridSize] = useState(DEFAULT_SIZE);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragMode, setDragMode] = useState<'obstacle' | 'erase' | null>(null);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [heatmapOpacity, setHeatmapOpacity] = useState(0.6);
   const animationRef = useRef<number | null>(null);
-  
-  // Sync dark mode
+
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -46,14 +51,13 @@ export default function App() {
     setSelectedCell({ row, col });
   }, [mode]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setMode('none');
         setSelectedCell(null);
       } else if (e.key === 'r' || e.key === 'R') {
-        setMaze(createEmptyMaze());
+        setMaze(createEmptyMaze(gridSize));
         setPathResult(null);
       } else if (e.key === ' ') {
         e.preventDefault();
@@ -62,16 +66,31 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [maze.start, maze.goal]);
+  }, [maze.start, maze.goal, gridSize]);
 
-  // Compute path
   const computePath = useCallback(() => {
     if (!maze.start || !maze.goal) return;
     
     setIsComputing(true);
-    // Simulate slight delay for UX
     setTimeout(() => {
       const result = runAlgorithm(maze, algorithm);
+      
+      // ✅ Update visitCount
+      if (result.visited.length > 0) {
+        setMaze(prev => {
+          const newMaze = cloneMaze(prev);
+          if (!newMaze.visitCount) {
+            newMaze.visitCount = Array(newMaze.rows).fill(null).map(() => Array(newMaze.cols).fill(0));
+          }
+          result.visited.forEach(({ row, col }) => {
+            if (newMaze.visitCount) {
+              newMaze.visitCount[row][col] += 1;
+            }
+          });
+          return newMaze;
+        });
+      }
+      
       setPathResult(result);
       setIsComputing(false);
       if (stepMode && result.visited.length > 0) {
@@ -80,7 +99,6 @@ export default function App() {
     }, 100);
   }, [maze, algorithm, stepMode]);
 
-  // Step animation
   useEffect(() => {
     if (!stepMode || !pathResult?.visited.length || currentStep >= pathResult.visited.length) return;
 
@@ -93,7 +111,6 @@ export default function App() {
     };
   }, [currentStep, stepMode, pathResult?.visited.length]);
 
-  // Get render type
   const getRenderCellType = (row: number, col: number): CellType => {
     const baseType = maze.grid[row][col];
     if (baseType === CellType.Start || baseType === CellType.Goal) return baseType;
@@ -114,27 +131,33 @@ export default function App() {
     return baseType;
   };
 
-  // Cell styling
-  const getCellClass = (type: CellType, isSelected: boolean, isPath = false) => {
-    const base = "w-10 h-10 md:w-12 md:h-12 flex items-center justify-center text-xs md:text-sm font-bold rounded-lg transition-all duration-300 relative";
+  const getCellClass = (type: CellType, isSelected: boolean, isPath = false, visitCount = 0) => {
+    let base = "w-10 h-10 md:w-12 md:h-12 flex items-center justify-center text-xs md:text-sm font-bold rounded-lg relative transition-all duration-300";
     const selected = isSelected ? "ring-2 ring-blue-400 scale-105 z-10" : "";
-    
+
     switch (type) {
-      case CellType.Empty:
-        return `${base} ${darkMode ? 'bg-gray-800/50 hover:bg-gray-700/70' : 'bg-gray-100 hover:bg-gray-200'} border border-gray-700/30 ${selected}`;
-      case CellType.Obstacle:
-        return `${base} bg-gradient-to-br from-gray-700 to-gray-900 text-gray-200 border border-gray-600 shadow-inner ${selected}`;
-      case CellType.Start:
-        return `${base} bg-gradient-to-br from-emerald-500 to-emerald-700 text-white border-2 border-emerald-400 shadow-lg ${selected} animate-pulse`;
-      case CellType.Goal:
-        return `${base} bg-gradient-to-br from-rose-500 to-rose-700 text-white border-2 border-rose-400 shadow-lg ${selected} animate-pulse`;
-      case CellType.Path:
-        return `${base} bg-gradient-to-br from-blue-500 to-cyan-500 text-white border border-blue-400 shadow-md ${selected} ${isPath ? 'path-cell' : ''}`;
-      case CellType.Visited:
-        return `${base} bg-gradient-to-br from-amber-400 to-amber-600 text-gray-900 border border-amber-500/50 ${selected}`;
-      default:
-        return base;
+      case CellType.Empty: base += ` ${darkMode ? 'bg-gray-800/50' : 'bg-gray-100'} border border-gray-700/30`; break;
+      case CellType.Obstacle: base += ` bg-gradient-to-br from-gray-700 to-gray-900 text-gray-200 border border-gray-600`; break;
+      case CellType.Start: base += ` bg-gradient-to-br from-emerald-500 to-emerald-700 text-white border-2 border-emerald-400`; break;
+      case CellType.Goal: base += ` bg-gradient-to-br from-rose-500 to-rose-700 text-white border-2 border-rose-400`; break;
+      case CellType.Path: base += ` bg-gradient-to-br from-blue-500 to-cyan-500 text-white border border-blue-400`; break;
+      case CellType.Visited: base += ` bg-gradient-to-br from-amber-400 to-amber-600 text-gray-900`; break;
+      default: break;
     }
+
+    base += ` ${selected}`;
+
+    // 🔥 Heatmap layer
+    if (showHeatmap && visitCount > 0 && ![CellType.Start, CellType.Goal, CellType.Obstacle].includes(type)) {
+      const intensity = Math.min(1, visitCount / 10);
+      const r = Math.floor(255 * intensity);
+      const g = Math.floor(255 * (1 - intensity * 0.5));
+      const b = 0;
+      base += ` after:absolute after:inset-0 after:rounded-lg after:bg-[rgba(${r},${g},${b},${heatmapOpacity})] after:content-[''] after:z-0`;
+      if (type === CellType.Empty) base += ' text-white';
+    }
+
+    return base;
   };
 
   const getCellSymbol = (type: CellType) => {
@@ -147,14 +170,55 @@ export default function App() {
     }
   };
 
+  const handleDragStart = (row: number, col: number, mode: 'obstacle' | 'erase') => {
+    setIsDragging(true);
+    setDragMode(mode);
+    if (mode === 'obstacle') {
+      setMaze(prev => toggleObstacle(prev, row, col));
+    } else {
+      const cellType = maze.grid[row][col];
+      if (cellType !== CellType.Start && cellType !== CellType.Goal) {
+        const newMaze = cloneMaze(maze);
+        newMaze.grid[row][col] = CellType.Empty;
+        setMaze(newMaze);
+      }
+    }
+    setPathResult(null);
+  };
+
+  const handleDragOver = (row: number, col: number) => {
+    if (!isDragging || !dragMode) return;
+    const cellType = maze.grid[row][col];
+    if (cellType === CellType.Start || cellType === CellType.Goal) return;
+
+    setMaze(prev => {
+      const newMaze = cloneMaze(prev);
+      newMaze.grid[row][col] = dragMode === 'obstacle' ? CellType.Obstacle : CellType.Empty;
+      return newMaze;
+    });
+  };
+
+  useEffect(() => {
+    const stopDrag = () => {
+      if (isDragging) {
+        setIsDragging(false);
+        setDragMode(null);
+      }
+    };
+    window.addEventListener('mouseup', stopDrag);
+    window.addEventListener('mouseleave', stopDrag);
+    return () => {
+      window.removeEventListener('mouseup', stopDrag);
+      window.removeEventListener('mouseleave', stopDrag);
+    };
+  }, [isDragging]);
+
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Animated background elements */}
       <div className="absolute top-10 right-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
       <div className="absolute bottom-20 left-10 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
 
       <div className="relative z-10 p-4 md:p-6 max-w-7xl mx-auto">
-        {/* Header */}
         <div className="glass rounded-2xl p-6 mb-6 backdrop-blur">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
@@ -162,7 +226,7 @@ export default function App() {
                 🧭 MazeRunner Pro
               </h1>
               <p className="text-gray-400 mt-1">
-                Advanced Navigation Algorithm Tester • Robotics Lab
+                Dynamic Grid • Smooth Painting • Heatmap Analytics
               </p>
             </div>
             <div className="flex gap-3">
@@ -173,20 +237,21 @@ export default function App() {
                 {darkMode ? '☀️ Light' : '🌙 Dark'}
               </button>
               <button
-                onClick={() => setMaze(createEmptyMaze())}
+                onClick={() => {
+                  setMaze(createEmptyMaze(gridSize));
+                  setPathResult(null);
+                }}
                 className="px-4 py-2 bg-gray-800/50 hover:bg-gray-700/70 text-gray-200 rounded-xl border border-gray-700 transition flex items-center gap-2"
               >
-                🔄 Reset
+                🔄 Reset ({gridSize}×{gridSize})
               </button>
             </div>
           </div>
         </div>
 
-        {/* Controls & Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Controls Panel */}
           <div className="lg:col-span-1 space-y-6">
-            {/* Placement Controls */}
+            {/* Placement */}
             <div className="glass rounded-2xl p-5">
               <h2 className="font-bold text-lg mb-3 text-cyan-300 flex items-center gap-2">
                 <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>
@@ -195,7 +260,7 @@ export default function App() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setMode('placingStart')}
-                  className={`py-3 rounded-xl font-medium transition flex flex-col items-center justify-center gap-1 ${
+                  className={`py-3 rounded-xl font-medium transition ${
                     mode === 'placingStart'
                       ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-300'
                       : 'bg-gray-800/50 hover:bg-gray-700/70 text-gray-300 border border-gray-700'
@@ -205,7 +270,7 @@ export default function App() {
                 </button>
                 <button
                   onClick={() => setMode('placingGoal')}
-                  className={`py-3 rounded-xl font-medium transition flex flex-col items-center justify-center gap-1 ${
+                  className={`py-3 rounded-xl font-medium transition ${
                     mode === 'placingGoal'
                       ? 'bg-rose-500/20 border border-rose-500 text-rose-300'
                       : 'bg-gray-800/50 hover:bg-gray-700/70 text-gray-300 border border-gray-700'
@@ -216,7 +281,38 @@ export default function App() {
               </div>
             </div>
 
-            {/* Algorithm Selector */}
+            {/* Grid Size */}
+            <div className="glass rounded-2xl p-5">
+              <h2 className="font-bold text-lg mb-3 text-cyan-300 flex items-center gap-2">
+                <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>
+                Grid Size
+              </h2>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-300">{gridSize}×{gridSize}</span>
+                  <span className="text-sm text-gray-500">{MIN_SIZE}–{MAX_SIZE}</span>
+                </div>
+                <input
+                  type="range"
+                  min={MIN_SIZE}
+                  max={MAX_SIZE}
+                  value={gridSize}
+                  onChange={(e) => {
+                    const newSize = Number(e.target.value);
+                    setGridSize(newSize);
+                    setMaze(prev => resizeMaze(prev, newSize));
+                    setPathResult(null);
+                  }}
+                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>{MIN_SIZE}×{MIN_SIZE}</span>
+                  <span>{MAX_SIZE}×{MAX_SIZE}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Algorithm */}
             <div className="glass rounded-2xl p-5">
               <h2 className="font-bold text-lg mb-3 text-cyan-300 flex items-center gap-2">
                 <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>
@@ -234,7 +330,7 @@ export default function App() {
               </select>
             </div>
 
-            {/* Action Buttons */}
+            {/* Execution */}
             <div className="glass rounded-2xl p-5">
               <h2 className="font-bold text-lg mb-3 text-cyan-300 flex items-center gap-2">
                 <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>
@@ -275,6 +371,26 @@ export default function App() {
                 >
                   {stepMode ? '⏹️ Stop Visualization' : '⏯️ Step-by-Step'}
                 </button>
+
+                {/* Heatmap Toggle */}
+                <div className="flex items-center gap-2 pt-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showHeatmap}
+                      onChange={(e) => setShowHeatmap(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div className={`relative w-10 h-5 flex items-center rounded-full p-1 transition ${
+                      showHeatmap ? 'bg-rose-500' : 'bg-gray-700'
+                    }`}>
+                      <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition ${
+                        showHeatmap ? 'translate-x-5' : ''
+                      }`}></div>
+                    </div>
+                    <span className="ml-2 text-sm text-gray-300">Show Heatmap</span>
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -291,6 +407,7 @@ export default function App() {
                   { color: 'bg-gradient-to-r from-gray-700 to-gray-900', label: 'Obstacle (⊡)' },
                   { color: 'bg-gradient-to-r from-blue-500 to-cyan-500', label: 'Optimal Path (•)' },
                   { color: 'bg-gradient-to-r from-amber-400 to-amber-600', label: 'Visited Nodes' },
+                  { color: 'bg-gradient-to-r from-green-500 to-red-500', label: 'Heatmap (Visit Freq.)' },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <div className={`w-6 h-6 rounded ${item.color}`}></div>
@@ -301,16 +418,14 @@ export default function App() {
             </div>
           </div>
 
-          {/* Grid & Analytics */}
           <div className="lg:col-span-3 space-y-6">
-            {/* Grid */}
             <div className="glass rounded-2xl p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="font-bold text-xl text-white">Interactive 10×10 Grid</h2>
+                <h2 className="font-bold text-xl text-white">Interactive Grid</h2>
                 <div className="text-sm text-gray-400">
                   {maze.start && maze.goal 
                     ? `Start: (${maze.start.row}, ${maze.start.col}) → Goal: (${maze.goal.row}, ${maze.goal.col})`
-                    : '👈 Set Start & Goal to begin'}
+                    : '👈 Set Start & Goal'}
                 </div>
               </div>
               
@@ -318,7 +433,7 @@ export default function App() {
                 <div 
                   className="grid gap-1.5 p-4 rounded-xl bg-black/20"
                   style={{ 
-                    gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
+                    gridTemplateColumns: `repeat(${maze.cols}, minmax(0, 1fr))`,
                     maxWidth: '520px'
                   }}
                 >
@@ -326,12 +441,20 @@ export default function App() {
                     row.map((_, c) => {
                       const cellType = getRenderCellType(r, c);
                       const isPath = pathResult?.path.some(p => p.row === r && p.col === c);
+                      const visits = maze.visitCount?.[r]?.[c] || 0;
                       return (
                         <div
                           key={`${r}-${c}`}
                           onClick={() => handleCellClick(r, c)}
-                          className={getCellClass(cellType, selectedCell?.row === r && selectedCell?.col === c, isPath)}
-                          title={`Cell (${r}, ${c})`}
+                          onMouseDown={(e) => {
+                            if (mode === 'none') {
+                              const isObstacle = maze.grid[r][c] === CellType.Obstacle;
+                              handleDragStart(r, c, isObstacle ? 'erase' : 'obstacle');
+                            }
+                          }}
+                          onMouseEnter={() => handleDragOver(r, c)}
+                          className={getCellClass(cellType, selectedCell?.row === r && selectedCell?.col === c, isPath, visits)}
+                          title={`(${r}, ${c})`}
                         >
                           {getCellSymbol(cellType)}
                         </div>
@@ -343,17 +466,14 @@ export default function App() {
 
               <div className="mt-4 text-center text-sm text-gray-400">
                 <kbd className="px-2 py-1 bg-gray-800/50 rounded-md mx-1">Click</kbd> 
-                to toggle obstacles | 
+                obstacles → erase | empty → paint | 
                 <kbd className="px-2 py-1 bg-gray-800/50 rounded-md mx-1">Space</kbd> 
-                to compute | 
-                <kbd className="px-2 py-1 bg-gray-800/50 rounded-md mx-1">Esc</kbd> 
-                to cancel
+                to compute
               </div>
             </div>
 
-            {/* Analytics Dashboard */}
+            {/* Metrics */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              {/* Metrics Card */}
               <div className="glass rounded-2xl p-6">
                 <h2 className="font-bold text-xl text-white mb-4 flex items-center gap-2">
                   <span className="w-3 h-3 bg-cyan-400 rounded-full"></span>
@@ -398,69 +518,46 @@ export default function App() {
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-4xl mb-3">📊</div>
-                    <p>Run an algorithm to see performance analytics</p>
-                    <p className="text-sm mt-2">Set Start & Goal, then click <strong>Find Optimal Path</strong></p>
+                    <p>Run an algorithm to see metrics & heatmap</p>
                   </div>
                 )}
               </div>
 
-              {/* Algorithm Comparison */}
               <div className="glass rounded-2xl p-6">
                 <h2 className="font-bold text-xl text-white mb-4 flex items-center gap-2">
                   <span className="w-3 h-3 bg-violet-400 rounded-full"></span>
-                  Algorithm Insights
+                  Tips
                 </h2>
-                
                 <div className="space-y-3 text-sm">
                   <Insight 
-                    algo="A*" 
-                    desc="Best for most cases — uses heuristic to find shortest path efficiently" 
-                    icon="🎯" 
-                    active={algorithm === 'A*'} 
+                    algo="Drag to Paint" 
+                    desc="Click & drag on empty cells to place obstacles, or on obstacles to erase" 
+                    icon="🖌️" 
                   />
                   <Insight 
-                    algo="Dijkstra" 
-                    desc="Guarantees shortest path without heuristic — slower but exact" 
-                    icon="⚖️" 
-                    active={algorithm === 'Dijkstra'} 
+                    algo="Heatmap" 
+                    desc="Toggle to see visit frequency — red = hotspots, green = rarely visited" 
+                    icon="🌡️" 
                   />
                   <Insight 
-                    algo="BFS" 
-                    desc="Finds shortest path in unweighted grids — simple and reliable" 
-                    icon="🔍" 
-                    active={algorithm === 'BFS'} 
+                    algo="Resize" 
+                    desc="Adjust grid from 5×5 (fast) to 20×20 (complex)" 
+                    icon="↔️" 
                   />
-                  <Insight 
-                    algo="DFS" 
-                    desc="Explores deeply first — not optimal but memory efficient" 
-                    icon="🌀" 
-                    active={algorithm === 'DFS'} 
-                  />
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-gray-800">
-                  <h3 className="font-medium text-cyan-300 mb-2">💡 Pro Tips</h3>
-                  <ul className="text-gray-400 space-y-1.5 text-sm list-disc pl-5">
-                    <li>Press <kbd className="bg-gray-800 px-1.5 rounded">Space</kbd> to recompute</li>
-                    <li>Try dense mazes to see algorithm differences</li>
-                    <li>Step mode helps understand search patterns</li>
-                  </ul>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-8 text-gray-500 text-sm">
-          🧠 MazeRunner Pro • Advanced Pathfinding Lab • Robotics Navigation System
+          🧠 MazeRunner Pro • Robotics Navigation Lab
         </div>
       </div>
     </div>
   );
 }
 
-// Reusable components
 const Metric: React.FC<{ label: string; value: string; icon: string; color?: string }> = ({ 
   label, value, icon, color = 'text-cyan-300' 
 }) => (
@@ -473,14 +570,14 @@ const Metric: React.FC<{ label: string; value: string; icon: string; color?: str
   </div>
 );
 
-const Insight: React.FC<{ algo: string; desc: string; icon: string; active: boolean }> = ({ 
-  algo, desc, icon, active 
+const Insight: React.FC<{ algo: string; desc: string; icon: string; active?: boolean }> = ({ 
+  algo, desc, icon 
 }) => (
-  <div className={`p-3 rounded-xl border transition-all ${active ? 'border-cyan-500 bg-cyan-500/10' : 'border-gray-800 bg-gray-800/20'}`}>
+  <div className="p-3 rounded-xl border border-gray-800 bg-gray-800/20">
     <div className="flex items-start gap-3">
-      <span className={`text-xl ${active ? 'text-cyan-400' : 'text-gray-400'}`}>{icon}</span>
+      <span className="text-xl text-gray-400">{icon}</span>
       <div>
-        <div className={`font-medium ${active ? 'text-cyan-300' : 'text-gray-300'}`}>{algo}</div>
+        <div className="font-medium text-gray-300">{algo}</div>
         <div className="text-gray-400 text-sm mt-1">{desc}</div>
       </div>
     </div>

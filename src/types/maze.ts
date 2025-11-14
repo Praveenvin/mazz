@@ -1,11 +1,14 @@
 // src/types/maze.ts
 
+export const MIN_SIZE = 5;
+export const MAX_SIZE = 20;
+export const DEFAULT_SIZE = 10;
+
 export type Position = {
   row: number;
   col: number;
 };
 
-// CellType is a runtime enum → keep as value
 export enum CellType {
   Empty = 0,
   Obstacle = 1,
@@ -26,9 +29,9 @@ export type MazeState = {
   goal: Position | null;
   rows: number;
   cols: number;
+  visitCount?: number[][];
 };
 
-// Algorithm is a union type → import as type
 export type Algorithm = 'A*' | 'Dijkstra' | 'BFS' | 'DFS';
 
 export type PathfindingResult = {
@@ -39,13 +42,11 @@ export type PathfindingResult = {
   found: boolean;
 };
 
-export const DEFAULT_ROWS = 10;
-export const DEFAULT_COLS = 10;
-
-export const createEmptyMaze = (rows = DEFAULT_ROWS, cols = DEFAULT_COLS): MazeState => ({
-  grid: Array(rows).fill(null).map(() => Array(cols).fill(CellType.Empty)),
+export const createEmptyMaze = (size = DEFAULT_SIZE): MazeState => ({
+  grid: Array(size).fill(null).map(() => Array(size).fill(CellType.Empty)),
   start: null,
   goal: null,
-  rows,
-  cols,
+  rows: size,
+  cols: size,
+  visitCount: Array(size).fill(null).map(() => Array(size).fill(0)),
 });
