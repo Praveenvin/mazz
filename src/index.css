@@ -1,0 +1,126 @@
+/* src/index.css */
+@import "tailwindcss";
+
+@theme {
+  /* Spacing scale (optional, but recommended for consistency) */
+  --spacing: 0.25rem; /* 1 = 0.25rem (4px) */
+
+  /* Border widths */
+  --border-width: 1px;
+  --border-width-border: 1px;
+
+  /* Colors — define the ones used in your UI */
+  --color-background: #ffffff;
+  --color-foreground: #1e293b;
+  --color-card: #ffffff;
+  --color-card-foreground: #1e293b;
+  --color-popover: #f8fafc;
+  --color-popover-foreground: #0f172a;
+  --color-primary: #3b82f6;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #e2e8f0;
+  --color-secondary-foreground: #1e293b;
+  --color-muted: #e2e8f0;
+  --color-muted-foreground: #64748b;
+  --color-accent: #e2e8f0;
+  --color-accent-foreground: #1e293b;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #cbd5e1;
+  --color-input: #cbd5e1;
+  --color-ring: #3b82f6;
+
+  /* Dark mode overrides */
+  --color-background-dark: #0f172a;
+  --color-foreground-dark: #f1f5f9;
+  --color-card-dark: #1e293b;
+  --color-card-foreground-dark: #f1f5f9;
+  --color-popover-dark: #1e293b;
+  --color-popover-foreground-dark: #f1f5f9;
+  --color-primary-dark: #60a5fa;
+  --color-secondary-dark: #334155;
+  --color-muted-dark: #334155;
+  --color-accent-dark: #334155;
+  --color-destructive-dark: #f87171;
+  --color-border-dark: #334155;
+  --color-input-dark: #334155;
+  --color-ring-dark: #60a5fa;
+}
+
+@layer base {
+  :root {
+    --background: var(--color-background);
+    --foreground: var(--color-foreground);
+    --card: var(--color-card);
+    --card-foreground: var(--color-card-foreground);
+    --popover: var(--color-popover);
+    --popover-foreground: var(--color-popover-foreground);
+    --primary: var(--color-primary);
+    --primary-foreground: var(--color-primary-foreground);
+    --secondary: var(--color-secondary);
+    --secondary-foreground: var(--color-secondary-foreground);
+    --muted: var(--color-muted);
+    --muted-foreground: var(--color-muted-foreground);
+    --accent: var(--color-accent);
+    --accent-foreground: var(--color-accent-foreground);
+    --destructive: var(--color-destructive);
+    --destructive-foreground: var(--color-destructive-foreground);
+    --border: var(--color-border);
+    --input: var(--color-input);
+    --ring: var(--color-ring);
+  }
+
+  .dark {
+    --background: var(--color-background-dark);
+    --foreground: var(--color-foreground-dark);
+    --card: var(--color-card-dark);
+    --card-foreground: var(--color-card-foreground-dark);
+    --popover: var(--color-popover-dark);
+    --popover-foreground: var(--color-popover-foreground-dark);
+    --primary: var(--color-primary-dark);
+    --primary-foreground: var(--color-primary-foreground);
+    --secondary: var(--color-secondary-dark);
+    --secondary-foreground: var(--color-secondary-foreground);
+    --muted: var(--color-muted-dark);
+    --muted-foreground: var(--color-muted-foreground);
+    --accent: var(--color-accent-dark);
+    --accent-foreground: var(--color-accent-foreground);
+    --destructive: var(--color-destructive-dark);
+    --destructive-foreground: var(--color-destructive-foreground);
+    --border: var(--color-border-dark);
+    --input: var(--color-input-dark);
+    --ring: var(--color-ring-dark);
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+/* Glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.dark .glass {
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Smooth path drawing */
+@keyframes drawPath {
+  0% { opacity: 0; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.path-cell {
+  animation: drawPath 0.3s ease-out forwards;
+}
