@@ -19,55 +19,74 @@ If you are developing a production application, we recommend updating the config
 export default defineConfig([
   globalIgnores(['dist']),
   {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+    # MazeRunner Pro
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+    MazeRunner Pro is an interactive maze visualizer and pathfinding playground built with React + TypeScript + Vite. Explore 2D and 3D maze views, place start/goal points, draw obstacles, and run multiple pathfinding algorithms (A*, Dijkstra, BFS, DFS). The app also includes heatmap visualizations to inspect algorithm exploration.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+    Live demo: run locally (instructions below).
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+    Key features
+    - Interactive grid editor: place start/goal, draw or erase obstacles by clicking or dragging.
+    - Multiple algorithms: A* (heuristic), Dijkstra (weighted), BFS and DFS (unweighted/exploratory).
+    - Step mode: animate the exploration step-by-step.
+    - Heatmap: visualize node visit frequency from runs.
+    - 2D and 3D views (Three.js) for richer visualization.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+    Tech stack
+    - React + TypeScript
+    - Vite (dev server & build)
+    - Tailwind CSS + PostCSS
+    - Three.js (3D view)
+    - ESLint for linting
+    - Optional: TensorFlow.js is included in dependencies (not required for basic pathfinding features)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+    Getting started
+
+    Prerequisites
+    - Node.js 18+ (LTS recommended)
+    - Git (optional)
+
+    Install and run locally
+    ```powershell
+    # install
+    npm install
+
+    # dev server
+    npm run dev
+
+    # build for production
+    npm run build
+
+    # preview built app
+    npm run preview
+    ```
+
+    Project layout (important files)
+    - `src/App.tsx` — main UI and controls (grid size, algorithms, heatmap, 2D/3D toggle).
+    - `src/utils/pathfinding.ts` — implementations of A*, Dijkstra, BFS, DFS and a tiny priority queue.
+    - `src/utils/maze.ts` — maze state helpers (toggle obstacles, set start/goal, resize, clone).
+    - `src/types/maze.ts` — shared TypeScript types and constants.
+    - `src/components/ThreeDMaze` — 3D rendering (uses `three`).
+
+    Usage & controls
+    - Click a grid cell to toggle obstacle. Use drag to paint obstacles.
+    - Use the Placement buttons to place Start (S) and Goal (G).
+    - Choose an algorithm from the dropdown and click "Find Path" to run.
+    - Press Space to run the selected algorithm (if start & goal are set).
+    - Press `r` to reset the maze. Press `Esc` to cancel placement.
+
+    Notes
+    - Line endings: when running on Windows you may see CRLF conversion warnings from Git — this is normal.
+    - TensorFlow is included in `package.json` but not used by the core pathfinding code.
+
+    Contributing
+    - Open issues or PRs in this repository. Small, focused PRs are easiest to review.
+    - Add tests and documentation for new algorithms or features.
+
+    License
+    - Add a `LICENSE` file if you plan to publish this project. (No license is included by default.)
+
+    Where to look for algorithms and techniques
+    - See `TECHNIQUES.md` (new file) for a compact summary of implemented algorithms and visual techniques, with pointers to source files.
+
+    Enjoy exploring mazes! Pull requests welcome.
